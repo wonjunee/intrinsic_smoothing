@@ -1,4 +1,76 @@
-"""Plot only the saved data beside this file; no OT computations are performed."""
+"""Experiment 5.1: Plot saved product-sphere OT results and estimate optimal bandwidths.
+
+This script summarizes the ambient Gaussian smoothing experiment performed by
+Impact_of_ambient_D_S1xS2.py. It reads saved squared Wasserstein costs; it
+does not generate samples or repeat any OT computations.
+
+Inputs and usage:
+    Run the copy of this script inside a completed experiment's run subfolder,
+    where run_config.json and measurements.csv are stored. On Windows, the
+    plot_results.cmd launcher in that subfolder runs this script as well.
+    Input paths are resolved relative to this file, regardless of the current
+    working directory. NumPy and Matplotlib are required.
+
+    The saved configuration supplies the dimensions, bandwidth grid, trial
+    count, and dimension suites. The script checks that the run is marked
+    complete and that the saved measurements are consistent and complete.
+    Saved sample and noise arrays are not needed for plotting.
+
+Error curves and reference costs:
+    For each ambient dimension D and bandwidth sigma, compute the mean squared
+    OT cost across trials and the sample standard deviation (ddof=1).
+    For Suite 1 (L1), plot mean W_2^2(k_sigma * mu_n, mu) curves with shaded
+    bands of one standard deviation, together with the direct unsmoothed
+    Euclidean and product-geodesic reference means and their corresponding
+    bands. These bands describe trial variability, not confidence intervals.
+
+    Save five views with bandwidth ranges [0, b], where
+    b = 0.20, 0.30, 0.35, 0.40, and 0.60 (see SIGMA_CLIP_LIMITS).
+    Also compare the first and last saved bandwidths across Suite 1 dimensions,
+    using mean costs and standard-deviation error bars.
+
+    The zero-bandwidth smoothing cost uses resampled empirical points and can
+    differ from the direct unsmoothed Euclidean reference.
+
+Numerical optimal bandwidths:
+    For every saved dimension, define sigma_amb as the bandwidth minimizing
+    the mean squared OT cost over the full saved grid. This is the minimum of
+    the mean curve, not the average of the individual trial minimizers.
+    Separately record the grid minimizer of each individual trial curve.
+
+    Both searches include zero when it is present in the saved grid. Ties are
+    resolved by selecting the first grid point (the smallest bandwidth on the
+    experiment's increasing grid). Record whether each optimum lies at a grid
+    boundary. No interpolation or continuous bandwidth optimization is used.
+
+Bandwidth scaling:
+    For Suite 2 (L2), fit
+        log(sigma_amb) = slope * log(D) + intercept
+    separately to the mean-curve optima and to the pooled trial-level optima.
+    A slope near -1 is consistent with approximate inverse-dimension scaling
+    over the tested dimensions. The fits are descriptive numerical summaries.
+
+    Zero optima remain in the optimum tables but are omitted from logarithmic
+    plots and fits; their omitted counts are recorded. A fit requires positive
+    optima at at least two distinct dimensions. If no positive optima exist for
+    a given analysis, its log-log plot is skipped. Regression CSV files still
+    record the fit status. Older configurations without suite definitions use
+    all available dimensions.
+
+Outputs:
+    Save figures as PNG and PDF files in the same run subfolder, using the
+    noninteractive Matplotlib backend (no plot windows are opened).
+    Save bandwidth estimates and regression summaries in:
+        optimal_bandwidths_from_average_curves.csv
+        optimal_bandwidths_by_trial.csv
+        sigma_amb_loglog_regression.csv
+        sigma_amb_trial_pooled_loglog_regression.csv
+    Regression summaries include the slope, intercept, and R-squared when a
+    fit is available. Rerunning replaces figures with the same names; derived
+    CSV files are rewritten only when their contents change.
+
+Code developed with assistance from Codex GPT-6 Astra.
+"""
 
 import csv
 import io

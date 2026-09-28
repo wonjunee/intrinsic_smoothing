@@ -1,9 +1,66 @@
-"""S^m experiment with one mixture discretization reused across sigma for each D.
+"""Experiment 5.1: Ambient Gaussian smoothing on the UNIT SPHERE S^m.
 
+This experiment investigates how the ambient dimension D affects the squared
+Wasserstein error W_2^2(k_sigma * mu_n, mu) and its optimal smoothing bandwidth.
+Here mu is the uniform probability measure on S^m, mu_n is the empirical measure
+of n independent samples from mu, and k_sigma is the Gaussian kernel with
+covariance sigma^2 I_D. The sphere is embedded in R^D by zero-padding its
+coordinates in R^(m+1), with D >= m + 1.
 
+For fixed n and m, the experiment examines the following predicted trends:
+1. The minimum error over bandwidths increases and the optimal bandwidth
+   decreases as D increases.
+2. The optimal bandwidth exhibits approximate inverse-dimension scaling,
+   sigma_amb proportional to 1/D.
+These trends are assessed numerically using a finite bandwidth grid.
 
-Run this file to compute and save a new experiment. Run plot_results.cmd in
-the resulting run folder separately to plot its saved distances.
+Default configuration:
+    m = 3 (S^3; use --m 4 for S^4), n = 50, N_eval = 5000, and five independent
+    trials, with sigma_j = 0.6 * (j / 80)^2 for j = 0, ..., 80.
+    L1 = {6, 8, 10, 12, 14} is used to compare mean error curves across D.
+    L2 = {10, 20, 40, 80, 160, 320} is used to examine bandwidth scaling with D.
+Dimensions shared by L1 and L2 are computed only once per trial. These defaults
+can be changed through command-line arguments.
+
+Sampling and discretization:
+    For each trial, draw n independent points X_i from mu to form mu_n and an
+    independent target sample of N_eval points Z_j from mu. Reuse these samples
+    across all ambient dimensions and bandwidths within that trial.
+
+    For each (trial, D), independently draw N_eval indices J_j uniformly from
+    {1, ..., n} and N_eval standard Gaussian vectors eta_j in R^D. Reuse these
+    indices and Gaussian vectors across all bandwidths, forming
+        Y_j(sigma) = embed_D(X_{J_j}) + sigma * eta_j.
+    The equally weighted points Y_j(sigma) approximate k_sigma * mu_n, and the
+    equally weighted points embed_D(Z_j) approximate mu.
+
+OT computation and reference costs:
+    Use POT's ot.emd2() with uniform weights and squared Euclidean costs to
+    compute OT between the two N_eval-point clouds. Also compute unsmoothed
+    reference costs directly between the n empirical points and the N_eval
+    target points, using both squared Euclidean and squared spherical-geodesic
+    distances on the unit sphere.
+
+    At sigma = 0, the smoothing curve uses N_eval resampled empirical points.
+    Its value can therefore differ from the direct n-point Euclidean reference
+    because the resampled empirical weights fluctuate.
+
+Numerical optimal bandwidth:
+    After the experiment, plot_results.py averages the squared OT costs across
+    trials at each (D, sigma) and defines sigma_amb as the grid bandwidth that
+    minimizes this mean curve. The search includes sigma = 0; ties are resolved
+    by choosing the smallest bandwidth. This is a finite-grid estimate, rather
+    than a continuous optimization over strictly positive bandwidths.
+
+Saving and plotting:
+    Keep this script and plot_results.py in the same folder. Running this script
+    creates a timestamped run subfolder beside it (or under --output-dir), saves
+    the configuration, measurements, and random draws, copies plot_results.py,
+    and creates a Windows plot_results.cmd launcher. Plotting is a separate step:
+    after the computation finishes, run plot_results.py in the run subfolder,
+    or double-click plot_results.cmd on Windows.
+
+Code developed with assistance from Codex GPT-6 Astra.
 """
 
 from __future__ import annotations
@@ -32,7 +89,7 @@ import ot
 # store variables in a JSON file for reproducibility, and store the measurements in a CSV file
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--m", type=int, default=4, help="intrinsic dimension of the unit sphere S^m") # the intrinsic dimension of the unit sphere
+    parser.add_argument("--m", type=int, default=3, help="intrinsic dimension of the unit sphere S^m") # the intrinsic dimension of the unit sphere
     parser.add_argument("--n", type=int, default=50) # the number of iid samples for mu_n
     parser.add_argument("--n-eval", type=int, default=5000) # N_eval-point cloud for discretization of marginal measures
     parser.add_argument("--num-trials", type=int, default=5) # the number of independent trials to run

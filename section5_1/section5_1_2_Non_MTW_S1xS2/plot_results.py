@@ -1,4 +1,84 @@
-"""Plot saved Experiment 5.1.2 results without importing or running an OT solver."""
+"""Experiment 5.1.2: Plot saved product-sphere OT results and estimate optimal bandwidths.
+
+This script summarizes the sample-size experiment performed by
+Impact_of_SampleSize_n_S1xS2.py. It reads saved squared Wasserstein costs; it
+does not generate samples or repeat any OT computations.
+
+Inputs and usage:
+    Run the copy of this script inside a completed experiment's run subfolder,
+    where run_config.json and measurements.csv are stored. On Windows, the
+    plot_results.cmd launcher in that subfolder runs this script as well.
+    By default, input paths are resolved relative to this file. Alternatively,
+    pass the completed run directory as a positional command-line argument:
+        python plot_results.py "path/to/completed/run"
+    NumPy and Matplotlib are required.
+
+    The saved configuration supplies the sample sizes, intrinsic dimension,
+    bandwidth grid, and trial count. The script checks that the run is marked
+    complete, that the grid equals sigma_j = 0.6 * (j / 80)^2 for j = 0, ..., 80,
+    and that the saved measurements are consistent and complete.
+    Saved sample and noise arrays are not needed for plotting.
+
+Error curves and reference costs:
+    For each sample size n and bandwidth sigma, compute the mean squared OT
+    cost across trials and the sample standard deviation (ddof=1).
+    Plot mean W_2^2(k_sigma * mu_n, mu) curves with shaded bands of one standard
+    deviation, together with the direct unsmoothed Euclidean and
+    product-geodesic reference means and their corresponding bands.
+    These bands describe trial variability, not confidence intervals.
+
+    Save individual plots for each n and overlays comparing all sample sizes,
+    with upper bandwidth limits 0.20, 0.30, 0.40, and 0.60. Individual plots use
+    a logarithmic bandwidth axis and omit zero; overlays use a linear bandwidth
+    axis and include zero. The mean and standard deviation are interpolated
+    only to display each upper endpoint. Saved OT measurements are unchanged.
+    Each view is saved both with and without a legend.
+
+    The zero-bandwidth smoothing cost uses resampled empirical points and can
+    differ from the direct unsmoothed Euclidean reference.
+
+Numerical optimal bandwidths:
+    For every saved sample size, define sigma_amb as the bandwidth minimizing
+    the mean squared OT cost over the full saved grid. This is the minimum of
+    the mean curve, not the average of the individual trial minimizers.
+    Separately record the grid minimizer of each individual trial curve.
+
+    Both searches include zero. Ties are resolved by selecting the smallest
+    bandwidth on the increasing grid. Record whether each optimum lies at a
+    grid boundary. No interpolation or continuous optimization is used to
+    estimate optimal bandwidths.
+
+Bandwidth scaling:
+    Fit the unweighted least-squares model
+        log(sigma_amb) = slope * log(n) + intercept
+    separately to the mean-curve optima and to the pooled trial-level optima.
+    Here m = m1 + m2 is the intrinsic dimension (m = 3 for S^1 x S^2).
+    Compare each fitted line with a reference line of slope -1/m, whose
+    intercept is fitted by least squares in log space with that slope fixed.
+    A slope near -1/m is consistent with approximate n^(-1/m) scaling over the
+    tested sample sizes. The fits are descriptive numerical summaries.
+
+    Zero optima remain in the optimum tables but are omitted from logarithmic
+    plots and fits; their omitted counts are recorded. A fit requires positive
+    optima at at least two distinct sample sizes. Otherwise, the corresponding
+    plot displays an insufficient-data message and the summary records the
+    fit status.
+
+Outputs:
+    Save figures as PNG and PDF files in the selected run subfolder, using the
+    noninteractive Matplotlib backend (no plot windows are opened).
+    Full-range curve figures are also saved under the original filenames
+    without the bandwidth-range suffix.
+    Save bandwidth estimates and regression summaries in:
+        optimal_bandwidths_from_average_curves.csv
+        optimal_bandwidths_by_trial.csv
+        loglog_regressions.csv
+    Regression summaries include fitted slopes and intercepts, R-squared when
+    defined, reference slopes and fitted reference intercepts, and fit status.
+    Rerunning replaces output files with the same names.
+
+Code developed with assistance from Codex GPT-6 Astra.
+"""
 
 import argparse
 import csv

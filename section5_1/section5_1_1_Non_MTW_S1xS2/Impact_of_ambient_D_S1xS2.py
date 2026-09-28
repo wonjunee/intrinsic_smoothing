@@ -1,8 +1,76 @@
-"""Exact-OT smoothing experiment on a product of spheres.
+"""Experiment 5.1: Ambient Gaussian smoothing on a PRODUCT of UNIT SPHERES (Non-MTW(K>0) example).
 
-Within each trial, the empirical and target samples are fixed across D and
-sigma. For each D, fresh mixture indices and Gaussian noise are reused across
-the 81 bandwidths. Run plot_results.cmd in the saved run folder afterward.
+This experiment investigates how the ambient dimension D affects the squared
+Wasserstein error W_2^2(k_sigma * mu_n, mu) and its optimal smoothing bandwidth
+on M = S^m1 x S^m2. Here mu is the product of the uniform probability measures
+on the two unit spheres, mu_n is the empirical measure of n independent
+samples from mu, and k_sigma is the Gaussian kernel with covariance sigma^2 I_D.
+
+The manifold has intrinsic dimension m1 + m2 and is naturally embedded in
+R^(m1+m2+2). Its coordinates are zero-padded to embed it in R^D, with
+D >= m1 + m2 + 2. By default, M = S^1 x S^2 has intrinsic dimension 3 and
+coordinate dimension 5. Each sphere factor has radius one.
+
+For fixed n and manifold dimensions, the experiment examines whether increasing
+D raises the minimum error over bandwidths and reduces the optimal bandwidth,
+and whether the latter exhibits approximate inverse-dimension scaling,
+sigma_amb proportional to 1/D. These trends are investigated numerically on
+a finite bandwidth grid.
+
+Default configuration:
+    m1 = 1, m2 = 2, n = 50, N_eval = 5000, and five independent trials.
+    The 81 bandwidths are sigma_j = 0.6 * (j / 80)^2 for j = 0, ..., 80.
+    L1 = {6, 8, 10, 12, 14} is used to compare mean error curves across D.
+    L2 = {10, 20, 40, 80, 160, 320} is used to examine bandwidth scaling with D.
+Dimensions shared by the two suites are computed only once per trial.
+These defaults can be changed through command-line arguments.
+
+Sampling and discretization:
+    For each trial, independently sample each sphere factor and concatenate
+    the coordinates to draw n empirical points X_i and N_eval independent
+    target points Z_j from mu. Reuse the empirical and target samples across
+    all dimensions and bandwidths within that trial.
+
+    For each (trial, D), independently draw N_eval indices J_j uniformly from
+    {1, ..., n} and N_eval standard Gaussian vectors eta_j in R^D. Reuse these
+    indices and vectors across all bandwidths, forming
+        Y_j(sigma) = embed_D(X_{J_j}) + sigma * eta_j.
+    The equally weighted points Y_j(sigma) approximate k_sigma * mu_n, and the
+    equally weighted points embed_D(Z_j) approximate mu.
+
+OT computation and reference costs:
+    Use POT's ot.emd2() with uniform weights and squared Euclidean costs to
+    compute discrete, unregularized OT between the two N_eval-point clouds.
+    Also compute direct unsmoothed reference costs between the n empirical
+    points and the N_eval target points, using both squared Euclidean and
+    squared product-geodesic distances.
+
+    For x = (x1, x2) and z = (z1, z2) on the product of unit spheres, the
+    squared product-geodesic cost is
+        d_M(x, z)^2 = arccos(<x1, z1>)^2 + arccos(<x2, z2>)^2.
+    At sigma = 0, the smoothing curve uses N_eval resampled empirical points,
+    so its cost can differ from the direct n-point Euclidean reference because
+    the resampled empirical weights fluctuate.
+
+Numerical optimal bandwidth:
+    After the experiment, plot_results.py averages the squared OT costs across
+    trials at each (D, sigma). It defines sigma_amb as the bandwidth minimizing
+    this mean curve over the full saved grid, including zero. Ties are resolved
+    by choosing the smallest bandwidth. This is a finite-grid estimate, rather
+    than a continuous optimization over strictly positive bandwidths.
+
+Saving and plotting:
+    Keep this script and plot_results.py in the same folder. Run this script
+    with a Python environment containing NumPy and POT. It creates a timestamped
+    run subfolder beside this file (or under --output-dir), saves configuration,
+    measurements, and random draws, copies plot_results.py, and creates a
+    Windows plot_results.cmd launcher.
+
+    After computation finishes, run the copied plot_results.py in the run
+    subfolder, or double-click plot_results.cmd on Windows. Plotting requires
+    Matplotlib and is a separate step from the experiment.
+
+Code developed with assistance from Codex GPT-6 Astra.
 """
 
 from __future__ import annotations
@@ -35,7 +103,7 @@ def parse_args():
     parser.add_argument("--m1", type=int, default=1) # set the intrinsic dimension of the first sphere
     parser.add_argument("--m2", type=int, default=2) # set the intrinsic dimension of the second sphere
     parser.add_argument("--n", type=int, default=50) # set the number of iid samples for mu_n
-    parser.add_argument("--n-eval", type=int, default=500) # set N_eval samples for discretization of the marginal distributions 
+    parser.add_argument("--n-eval", type=int, default=5000) # set N_eval samples for discretization of the marginal distributions 
     parser.add_argument("--num-trials", type=int, default=5) # set the number of trials to run
     parser.add_argument("--suite-1-dimensions", type=int, nargs="+",
                         default=[6, 8, 10, 12, 14]) # set the dimensions for the first suite of experiments: for illustrating W_2^2 curves 
